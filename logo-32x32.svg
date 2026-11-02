@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <style>
+    .bg { fill: none; }
+    .circle-cyan { fill: #0099cc; mix-blend-mode: multiply; opacity: 0.85; }
+    .circle-magenta { fill: #e6007e; mix-blend-mode: multiply; opacity: 0.85; }
+    .circle-yellow { fill: #ffcc00; mix-blend-mode: multiply; opacity: 0.85; }
+    .border { fill: none; stroke: #0a192f; stroke-width: 0.8; }
+  </style>
+
+  <!-- Outer Ring -->
+  <circle cx="16.0" cy="16.0" r="14.72" class="border" />
+
+  <!-- Overlapping Circles (Subtractive Color Mixing) -->
+  <g>
+    <!-- Cyan (Top Left) -->
+    <circle cx="13.12" cy="13.12" r="8.0" fill="#009AEC" opacity="0.85" style="mix-blend-mode: multiply;" />
+    <!-- Magenta (Top Right) -->
+    <circle cx="18.88" cy="13.12" r="8.0" fill="#E6007E" opacity="0.85" style="mix-blend-mode: multiply;" />
+    <!-- Yellow (Bottom Center) -->
+    <circle cx="16.0" cy="18.56" r="8.0" fill="#FFCC00" opacity="0.85" style="mix-blend-mode: multiply;" />
+  </g>
+</svg>
