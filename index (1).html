@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STAMP IA · Diseña y prueba tu estampado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Fuentes de la interfaz y del texto del estampado -->
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&family=Anton&family=Pacifico&family=Bebas+Neue&family=Permanent+Marker&family=Playfair+Display:wght@700&family=Roboto+Mono:wght@700&display=swap" rel="stylesheet">
+
+<style>
+/* ===== 1. VARIABLES (tintas de serigrafía) ===== */
+:root{
+  --papel:#EEF1F6; --pantalla:#FFFFFF; --tinta:#16213D; --suave:#5B6784; --linea:#D3D9E4;
+  --cian:#00A3C7; --magenta:#D6246E; --amarillo:#F2C200;
+  --radio:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--papel);color:var(--tinta);font-family:"Bricolage Grotesque",system-ui,sans-serif;line-height:1.45}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--cian);outline-offset:2px}
+
+/* ===== 2. ENCABEZADO ===== */
+header{display:flex;align-items:center;gap:14px;padding:18px clamp(16px,4vw,40px)}
+.marca{width:46px;height:46px;position:relative;flex:none}
+.marca i{position:absolute;width:28px;height:28px;border-radius:50%;mix-blend-mode:multiply}
+.marca i:nth-child(1){background:var(--cian);left:0;top:0}
+.marca i:nth-child(2){background:var(--magenta);left:16px;top:0}
+.marca i:nth-child(3){background:var(--amarillo);left:8px;top:16px}
+h1{margin:0;font-size:1.7rem;font-weight:800;letter-spacing:-.02em}
+header p{margin:0;color:var(--suave);font-size:.95rem}
+
+/* ===== 3. DISPOSICIÓN ===== */
+main{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;padding:0 clamp(16px,4vw,40px) 40px;max-width:1200px;margin:0 auto}
+.vista{position:sticky;top:12px;align-self:start}
+@media(max-width:860px){main{grid-template-columns:1fr}.vista{position:static}}
+canvas{width:100%;height:auto;aspect-ratio:1;background:#DDE2EA;border-radius:var(--radio);touch-action:none;cursor:grab;display:block}
+canvas.arrastrando{cursor:grabbing}
+.tallas-vista{margin:10px 2px 0;color:var(--suave);font-size:.95rem}
+.tallas-vista b{color:var(--tinta)}
+
+/* ===== 4. PANELES DE CONTROL ===== */
+.panel{background:var(--pantalla);border:1px solid var(--linea);border-radius:var(--radio);padding:16px;margin-bottom:14px}
+h2{margin:0 0 10px;font-size:1.05rem;font-weight:800}
+label{display:block;font-size:.88rem;font-weight:600;margin:10px 0 4px}
+input[type=text],input[type=password],select,textarea{width:100%;padding:10px 12px;border:1px solid var(--linea);border-radius:8px;background:#fff}
+textarea{resize:vertical;min-height:84px;font:inherit}
+input[type=range]{width:100%;accent-color:var(--magenta)}
+input[type=color]{width:100%;height:42px;padding:2px;border:1px solid var(--linea);border-radius:8px;background:#fff}
+.fila{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.check{display:flex;align-items:center;gap:8px;font-weight:400;margin-top:10px}
+.check input{width:auto}
+.btn{border:0;border-radius:8px;padding:11px 16px;font-weight:800;cursor:pointer;background:var(--tinta);color:#fff}
+.btn.principal{background:var(--magenta);width:100%;margin-top:12px;font-size:1.02rem}
+.btn.sec{background:#fff;color:var(--tinta);border:1px solid var(--linea)}
+.btn:disabled{opacity:.55;cursor:wait}
+
+/* Chips de talla y colores de prenda */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:7px 14px;border-radius:999px;border:1px solid var(--linea);background:#fff;cursor:pointer;font-weight:600}
+.chip[aria-pressed=true]{background:var(--tinta);color:#fff;border-color:var(--tinta)}
+.muestra{width:34px;height:34px;border-radius:50%;border:2px solid var(--linea);cursor:pointer;padding:0}
+.muestra[aria-pressed=true]{outline:3px solid var(--cian);outline-offset:2px}
+.agregar{display:flex;gap:8px;margin-top:10px}
+
+/* Mensajes de error y estado */
+#error{display:none;background:#FDECEF;border:1px solid var(--magenta);color:#8A1240;border-radius:8px;padding:10px 12px;margin-top:12px;font-weight:600}
+#estado{margin-top:10px;color:var(--suave);font-size:.92rem;min-height:1.3em}
+.nota{font-size:.82rem;color:var(--suave);margin:6px 0 0}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="marca" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div>
+    <h1>STAMP IA</h1>
+    <p>Describe un estampado, pruébalo en la prenda y elige tallas.</p>
+  </div>
+</header>
+
+<main>
+  <!-- ===== 5. VISTA PREVIA ===== -->
+  <section class="vista" aria-label="Vista previa">
+    <canvas id="lienzo" width="1000" height="1000" aria-label="Vista previa de la prenda con el estampado"></canvas>
+    <p class="tallas-vista" id="tallasVista"></p>
+    <p class="nota">Arrastra el texto sobre la prenda para moverlo libremente.</p>
+    <button class="btn sec" id="descargar" style="margin-top:10px">Descargar vista previa (PNG)</button>
+  </section>
+
+  <!-- ===== 6. CONTROLES ===== -->
+  <section aria-label="Controles">
+
+    <div class="panel">
+      <h2>1. Genera la imagen</h2>
+      <label for="clave">Clave API de OpenAI</label>
+      <input type="password" id="clave" placeholder="sk-..." autocomplete="off">
+      <label class="check"><input type="checkbox" id="recordar"> Recordarla solo mientras esta pestaña esté abierta</label>
+
+      <label for="descripcion">Descripción del estampado</label>
+      <textarea id="descripcion" placeholder="Ej: un zorro astronauta en estilo retro con colores vivos"></textarea>
+
+      <div class="fila">
+        <div>
+          <label for="modelo">Modelo</label>
+          <select id="modelo">
+            <option value="gpt-image-1-mini">gpt-image-1-mini (económico)</option>
+            <option value="gpt-image-1">gpt-image-1 (más calidad)</option>
+          </select>
+        </div>
+        <div>
+          <label for="calidad">Calidad</label>
+          <select id="calidad">
+            <option value="low">Baja (más barata)</option>
+            <option value="medium" selected>Media</option>
+            <option value="high">Alta</option>
+          </select>
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" id="transparente" checked> Fondo transparente (recomendado para estampar)</label>
+
+      <button class="btn principal" id="generar">Generar imagen</button>
+      <div id="error" role="alert"></div>
+      <div id="estado" aria-live="polite"></div>
+    </div>
+
+    <div class="panel">
+      <h2>2. Prenda</h2>
+      <label for="prenda">Tipo de prenda</label>
+      <select id="prenda"></select>
+      <label>Color de la prenda</label>
+      <div class="chips" id="coloresPrenda"></div>
+      <label for="escala">Tamaño de la imagen: <span id="escalaVal">100</span>%</label>
+      <input type="range" id="escala" min="40" max="140" value="100">
+    </div>
+
+    <div class="panel">
+      <h2>3. Tallas</h2>
+      <div class="chips" id="tallas"></div>
+      <div class="agregar">
+        <input type="text" id="tallaNueva" placeholder="Otra talla (ej: 3XL, Única)" maxlength="8" aria-label="Agregar talla">
+        <button class="btn sec" id="tallaAgregar">Agregar</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>4. Texto personalizado</h2>
+      <label for="texto">Texto</label>
+      <input type="text" id="texto" placeholder="Escribe aquí" maxlength="40">
+      <div class="fila">
+        <div>
+          <label for="fuente">Tipografía</label>
+          <select id="fuente">
+            <option>Anton</option><option>Bebas Neue</option><option>Pacifico</option>
+            <option>Permanent Marker</option><option>Playfair Display</option>
+            <option>Roboto Mono</option><option>Bricolage Grotesque</option><option>Arial</option>
+          </select>
+        </div>
+        <div>
+          <label for="color">Color del texto</label>
+          <input type="color" id="color" value="#D6246E">
+        </div>
+      </div>
+      <label for="tamano">Tamaño de letra: <span id="tamanoVal">48</span></label>
+      <input type="range" id="tamano" min="16" max="120" value="48">
+      <label for="posicion">Posición</label>
+      <select id="posicion">
+        <option value="arriba">Arriba</option>
+        <option value="centro" selected>Centro</option>
+        <option value="abajo">Abajo</option>
+        <option value="libre">Libre (arrastrando)</option>
+      </select>
+    </div>
+
+  </section>
+</main>
+
+<script>
+/* ===== 7. ESTADO GLOBAL ===== */
+const estado = {
+  prenda: 'camiseta',
+  colorPrenda: '#F5F5F2',
+  imagen: null,               // objeto Image generado por la IA
+  escala: 100,
+  tallas: new Set(['M']),
+  texto: { valor:'', fuente:'Anton', color:'#D6246E', tamano:48, pos:'centro', x:250, y:250 }
+};
+
+const $ = id => document.getElementById(id);
+const lienzo = $('lienzo'), ctx = lienzo.getContext('2d');
+ctx.scale(2, 2); // El lienzo mide 1000px reales, pero dibujamos en un espacio lógico de 500x500
+
+/* ===== 8. PRENDAS (mockups vectoriales) =====
+   "area" es la zona imprimible. "forma" dibuja la prenda con el color elegido. */
+const PRENDAS = {
+  camiseta: { nombre:'Camiseta', area:{x:150,y:130,w:200,h:250},
+    forma: new Path2D('M170 60 L120 80 L40 140 L75 190 L115 165 L115 440 L385 440 L385 165 L425 190 L460 140 L380 80 L330 60 Q250 120 170 60 Z') },
+  sudadera: { nombre:'Sudadera', area:{x:165,y:150,w:170,h:170},
+    forma: new Path2D('M185 65 Q250 125 315 65 L395 95 L465 390 L405 405 L385 260 L385 440 L115 440 L115 260 L95 405 L35 390 L105 95 Z'),
+    detalle: c => { c.beginPath(); c.moveTo(190,350); c.lineTo(310,350); c.lineTo(325,410); c.lineTo(175,410); c.closePath(); c.stroke(); } },
+  gorra: { nombre:'Gorra', area:{x:185,y:150,w:130,h:100},
+    forma: (() => { const p = new Path2D('M95 290 Q95 105 250 105 Q405 105 405 290 Z'); p.addPath(new Path2D('M75 290 Q250 255 425 290 Q445 345 250 355 Q55 345 75 290 Z')); return p; })() },
+  taza: { nombre:'Taza', area:{x:150,y:170,w:180,h:190},
+    forma: new Path2D('M130 120 L130 385 Q130 415 160 415 L320 415 Q350 415 350 385 L350 120 Z'),
+    antes: (c,col) => { c.strokeStyle = col; c.lineWidth = 24; c.lineCap = 'round'; c.beginPath(); c.moveTo(350,180); c.bezierCurveTo(450,180,450,350,350,350); c.stroke(); } },
+  bolsa: { nombre:'Bolsa de tela', area:{x:160,y:220,w:180,h:190},
+    forma: new Path2D('M140 170 L360 170 L385 440 L115 440 Z'),
+    antes: (c,col) => { c.strokeStyle = col; c.lineWidth = 12; c.lineCap = 'round'; c.beginPath(); c.moveTo(185,172); c.bezierCurveTo(185,40,315,40,315,172); c.stroke(); } }
+};
+const COLORES_PRENDA = ['#F5F5F2','#1D1D1F','#9AA0A6','#2B4C8C','#B5303A','#2F7D5B'];
+
+/* ===== 9. DIBUJO ===== */
+function dibujar(){
+  const p = PRENDAS[estado.prenda];
+  ctx.clearRect(0,0,500,500);
+  ctx.fillStyle = '#DDE2EA'; ctx.fillRect(0,0,500,500);
+
+  // Piezas extra detrás (asa de taza, asas de bolsa)
+  ctx.save();
+  if (p.antes) p.antes(ctx, estado.colorPrenda);
+  ctx.restore();
+
+  // Cuerpo con color + sombreado suave para dar volumen
+  ctx.save();
+  ctx.fillStyle = estado.colorPrenda; ctx.fill(p.forma);
+  ctx.clip(p.forma);
+  const g = ctx.createLinearGradient(0,0,500,0);
+  g.addColorStop(0,'rgba(0,0,0,.16)'); g.addColorStop(.5,'rgba(255,255,255,.10)'); g.addColorStop(1,'rgba(0,0,0,.2)');
+  ctx.fillStyle = g; ctx.fillRect(0,0,500,500);
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 2; ctx.stroke(p.forma);
+  if (p.detalle) p.detalle(ctx);
+
+  // Imagen generada, ajustada a la zona imprimible
+  const a = p.area;
+  if (estado.imagen){
+    const r = Math.min(a.w/estado.imagen.width, a.h/estado.imagen.height) * estado.escala/100;
+    const w = estado.imagen.width*r, h = estado.imagen.height*r;
+    ctx.drawImage(estado.imagen, a.x + (a.w-w)/2, a.y + (a.h-h)/2, w, h);
+  } else {
+    ctx.save(); ctx.setLineDash([6,6]); ctx.strokeStyle='rgba(22,33,61,.35)'; ctx.lineWidth=1.5;
+    ctx.strokeRect(a.x,a.y,a.w,a.h); ctx.restore();
+  }
+
+  // Texto personalizado
+  const t = estado.texto;
+  if (t.valor){
+    const pos = posicionTexto();
+    ctx.font = `${t.tamano}px "${t.fuente}", sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = t.color; ctx.fillText(t.valor, pos.x, pos.y);
+  }
+  mostrarTallas();
+}
+
+// Coordenadas del texto según la posición elegida
+function posicionTexto(){
+  const a = PRENDAS[estado.prenda].area, t = estado.texto, cx = a.x + a.w/2;
+  if (t.pos === 'arriba') return { x:cx, y:a.y + t.tamano*0.7 };
+  if (t.pos === 'abajo')  return { x:cx, y:a.y + a.h - t.tamano*0.7 };
+  if (t.pos === 'libre')  return { x:t.x, y:t.y };
+  return { x:cx, y:a.y + a.h/2 };
+}
+
+function mostrarTallas(){
+  const orden = ['XS','S','M','L','XL','XXL'];
+  const lista = [...estado.tallas].sort((a,b) => (orden.indexOf(a)+1||99) - (orden.indexOf(b)+1||99));
+  $('tallasVista').innerHTML = lista.length ? `Tallas del diseño: <b>${lista.join(', ')}</b>` : 'Elige al menos una talla para este diseño.';
+}
+
+/* ===== 10. CONTROLES: PRENDA, COLOR, TALLAS ===== */
+$('prenda').innerHTML = Object.entries(PRENDAS).map(([k,v]) => `<option value="${k}">${v.nombre}</option>`).join('');
+$('prenda').onchange = e => { estado.prenda = e.target.value; dibujar(); };
+
+COLORES_PRENDA.forEach(c => {
+  const b = document.createElement('button');
+  b.className = 'muestra'; b.style.background = c; b.setAttribute('aria-label','Color '+c);
+  b.setAttribute('aria-pressed', c === estado.colorPrenda);
+  b.onclick = () => { estado.colorPrenda = c; document.querySelectorAll('.muestra').forEach(x => x.setAttribute('aria-pressed', x===b)); dibujar(); };
+  $('coloresPrenda').appendChild(b);
+});
+
+$('escala').oninput = e => { estado.escala = +e.target.value; $('escalaVal').textContent = e.target.value; dibujar(); };
+
+function crearChipTalla(t){
+  const b = document.createElement('button');
+  b.className = 'chip'; b.textContent = t; b.setAttribute('aria-pressed', estado.tallas.has(t));
+  b.onclick = () => { estado.tallas.has(t) ? estado.tallas.delete(t) : estado.tallas.add(t); b.setAttribute('aria-pressed', estado.tallas.has(t)); dibujar(); };
+  $('tallas').appendChild(b);
+}
+['XS','S','M','L','XL','XXL'].forEach(crearChipTalla);
+$('tallaAgregar').onclick = () => {
+  const t = $('tallaNueva').value.trim().toUpperCase();
+  if (!t || [...$('tallas').children].some(c => c.textContent === t)) return;
+  estado.tallas.add(t); crearChipTalla(t); $('tallaNueva').value = ''; dibujar();
+};
+
+/* ===== 11. CONTROLES DE TEXTO (vista previa en vivo) ===== */
+$('texto').oninput = e => { estado.texto.valor = e.target.value; dibujar(); };
+$('color').oninput = e => { estado.texto.color = e.target.value; dibujar(); };
+$('tamano').oninput = e => { estado.texto.tamano = +e.target.value; $('tamanoVal').textContent = e.target.value; dibujar(); };
+$('posicion').onchange = e => {
+  if (e.target.value === 'libre'){ const p = posicionTexto(); estado.texto.x = p.x; estado.texto.y = p.y; }
+  estado.texto.pos = e.target.value; dibujar();
+};
+$('fuente').onchange = e => {
+  estado.texto.fuente = e.target.value;
+  // Esperamos a que la fuente cargue para no dibujar con una de reserva
+  document.fonts.load(`40px "${e.target.value}"`).then(dibujar); dibujar();
+};
+
+/* Arrastrar el texto (ratón o dedo) */
+let arrastre = null;
+function puntoLienzo(e){
+  const r = lienzo.getBoundingClientRect();
+  return { x:(e.clientX - r.left)*500/r.width, y:(e.clientY - r.top)*500/r.height };
+}
+lienzo.addEventListener('pointerdown', e => {
+  const t = estado.texto; if (!t.valor) return;
+  const pt = puntoLienzo(e), pos = posicionTexto();
+  ctx.font = `${t.tamano}px "${t.fuente}", sans-serif`;
+  const mitad = ctx.measureText(t.valor).width/2 + 8;
+  if (Math.abs(pt.x-pos.x) <= mitad && Math.abs(pt.y-pos.y) <= t.tamano*0.7){
+    arrastre = { dx:pos.x-pt.x, dy:pos.y-pt.y };
+    lienzo.setPointerCapture(e.pointerId); lienzo.classList.add('arrastrando');
+  }
+});
+lienzo.addEventListener('pointermove', e => {
+  if (!arrastre) return;
+  const pt = puntoLienzo(e);
+  estado.texto.x = pt.x + arrastre.dx; estado.texto.y = pt.y + arrastre.dy;
+  estado.texto.pos = 'libre'; $('posicion').value = 'libre'; dibujar();
+});
+['pointerup','pointercancel'].forEach(n => lienzo.addEventListener(n, () => { arrastre = null; lienzo.classList.remove('arrastrando'); }));
+
+/* ===== 12. GENERACIÓN CON LA API DE OPENAI ===== */
+const mostrarError = m => { const el = $('error'); el.textContent = m; el.style.display = m ? 'block' : 'none'; };
+
+// Clave: solo en el campo de entrada (y en sessionStorage si el usuario lo pide). Nunca en el código.
+try { const g = sessionStorage.getItem('stampia_clave'); if (g){ $('clave').value = g; $('recordar').checked = true; } } catch(e){}
+
+async function generar(){
+  mostrarError(''); $('estado').textContent = '';
+  const clave = $('clave').value.replace(/\s+/g, ''), desc = $('descripcion').value.trim(); // quita espacios y saltos de línea
+  if (!desc) return mostrarError('Escribe una descripción del estampado antes de generar.');
+  if (!clave) return mostrarError('Falta la clave API. Pégala en el campo "Clave API de OpenAI".');
+  if (!/^[\x21-\x7E]+$/.test(clave)) return mostrarError('La clave tiene caracteres no válidos (tildes, comillas curvas o símbolos raros). Cópiala de nuevo desde el panel de OpenAI.');
+  try { $('recordar').checked ? sessionStorage.setItem('stampia_clave', clave) : sessionStorage.removeItem('stampia_clave'); } catch(e){}
+
+  // Instrucciones extra para que el resultado sirva como estampado
+  const prompt = `Diseño de estampado para ropa: ${desc}. Composición centrada, bordes limpios, colores definidos, sin texto, sin mockup de prenda.`;
+  const cuerpo = { model:$('modelo').value, prompt, n:1, size:'1024x1024', quality:$('calidad').value, output_format:'png',
+                   background: $('transparente').checked ? 'transparent' : 'auto' };
+
+  $('generar').disabled = true; $('estado').textContent = 'Generando imagen… puede tardar unos segundos.';
+  try {
+    const r = await fetch('https://api.openai.com/v1/images/generations', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+clave },
+      body: JSON.stringify(cuerpo)
+    });
+    const datos = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(mensajeApi(r.status, datos));
+    const b64 = datos.data && datos.data[0] && datos.data[0].b64_json;
+    if (!b64) throw new Error('La API respondió sin imagen. Intenta de nuevo con otra descripción.');
+    const img = new Image();
+    img.onload = () => { estado.imagen = img; $('estado').textContent = 'Listo. Ajusta la prenda, el texto y las tallas.'; dibujar(); };
+    img.src = 'data:image/png;base64,' + b64;
+  } catch(err){
+    $('estado').textContent = '';
+    console.error('Error al llamar a la API:', err);
+    mostrarError(err instanceof TypeError
+      ? 'No se pudo conectar con api.openai.com (' + err.message + '). Causas comunes: clave pegada con espacios o saltos de línea, bloqueador de anuncios, VPN, antivirus o firewall, o sin internet. Abre la consola (F12) para ver el detalle.'
+      : err.message);
+  } finally { $('generar').disabled = false; }
+}
+function mensajeApi(status, datos){
+  const detalle = datos.error && datos.error.message ? ' Detalle: ' + datos.error.message : '';
+  if (status === 401) return 'La clave API no es válida. Revisa que esté completa y activa.' + detalle;
+  if (status === 429) return 'Se alcanzó el límite de uso o no hay saldo en tu cuenta de OpenAI.' + detalle;
+  if (status === 403) return 'Tu cuenta no tiene acceso a este modelo. Prueba con otro modelo de la lista.' + detalle;
+  return `Error ${status} de la API.` + detalle;
+}
+$('generar').onclick = generar;
+
+/* ===== 13. DESCARGA ===== */
+$('descargar').onclick = () => {
+  lienzo.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'stamp-ia-vista-previa.png'; a.click(); URL.revokeObjectURL(a.href); });
+};
+
+/* ===== 14. INICIO ===== */
+document.fonts.ready.then(dibujar);
+dibujar();
+</script>
+</body>
+</html>
